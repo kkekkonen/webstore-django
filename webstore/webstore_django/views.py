@@ -8,6 +8,9 @@ import json
 from webstore_django.forms import *
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth import login as auth_login, authenticate as auth_authenticate, logout as auth_logout
+from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 # Create your views here.
 
 def login(request):
@@ -52,16 +55,29 @@ def product(request, id):
     return HttpResponse(template.render(context, request))
 
 def product_list(request):
-    shopping_cart, created = Shopping_cart.objects.get_or_create(owner=request.user)
-    template = loader.get_template('shopping_cart.html')
-    context = {
-        'cart': shopping_cart,
-    }
-    products = Product.objects.all()
+    page = request.GET.get('page', 1)
+    search_parameters = request.GET.get('search', '')
+    sorting = request.GET.get('sorting', '')
+    if search_parameters is not '':
+        name_search = Product.objects.filter(name__contains=search_parameters)
+        code_search = Product.objects.filter(code__contains=search_parameters)
+        products = name_search | code_search
+    else:
+        products = Product.objects.all()
+    if sorting is not '':
+        products = products.order_by(sorting)
+    paginator = Paginator(products, 4)
+    try:
+        products_paginated = paginator.page(page)
+    except PageNotAnInteger:
+        products_paginated = paginator.page(1)
+    except EmptyPage:
+        products_paginated = paginator.page(paginator.num_pages)
     template = loader.get_template('product_list.html')
     context = {
-        'cart': shopping_cart,
-        'products': products,
+        'products': products_paginated,
+        'search_parameters': search_parameters,
+        'sorting': sorting,
     }
     return HttpResponse(template.render(context, request))
 
@@ -91,36 +107,38 @@ def search_product(request, search_parameters):
     }
     return HttpResponse(template.render(context, request))
 
+@login_required
+@csrf_exempt
 def remove_shopping_cart(request, id):
-    if(request.method == "POST"):
-        template = loader.get_template('shopping_cart.html')
-        product = get_object_or_404(Product, pk=id)
-        shopping_cart, created = Shopping_cart.objects.get_or_create(owner=request.user, defaults={'products': '{}'})
-        data = json.loads(shopping_cart.products)
-        if created:
-            return HttpResponse(template.render(request))
-        elif id in data:
-            count = data[id]['count'] - 1
-            if count >= 1:
-                data[id]['count'] = count
-            else:
-                data.pop(id, None)
-            shopping_cart.products = json.dumps(data)
-            shopping_cart.save()
-        context = {'cart': data}
-        return HttpResponse(template.render(context, request))
-    else:
+    template = loader.get_template('shopping_cart.html')
+    product = get_object_or_404(Product, pk=id)
+    shopping_cart, created = Shopping_cart.objects.get_or_create(owner=request.user, defaults={'products': '{}'})
+    data = json.loads(shopping_cart.products)
+    if created:
         return HttpResponse(template.render(request))
+    elif str(id) in data:
+        count = data[str(id)]['count'] - 1
+        if count >= 1:
+            data[str(id)]['count'] = count
+        else:
+            data.pop(str(id), None)
+        shopping_cart.products = json.dumps(data)
+        shopping_cart.save()
+    context = {'cart': data}
+    return redirect(reverse('shopping_cart'))
 
+@login_required
+@csrf_exempt
 def add_shopping_cart(request, id):
     if(request.method == "POST"):
         shopping_cart, created = Shopping_cart.objects.get_or_create(owner=request.user, defaults={'products': '{}'})
         product = get_object_or_404(Product, pk=id)
+        print(shopping_cart.products)
         data = json.loads(shopping_cart.products)
-        if id in data:
-            data[id]['count'] = data[id]['count'] + 1
+        if str(id) in data:
+            data[str(id)]['count'] = data[str(id)]['count'] + 1
         else:
-            data[id] = {'count': 1, 'name': product.name, 'code': product.name, 'cost': product.cost}
+            data[str(id)] = {'count': 1, 'name': product.name, 'code': product.name, 'cost': product.cost, 'id': product.id}
         shopping_cart.products = json.dumps(data)
         shopping_cart.save()
         return HttpResponse(status=200)

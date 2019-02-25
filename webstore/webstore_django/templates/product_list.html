@@ -1,7 +1,63 @@
 {% extends "base.html" %}
 
+{% block static-files %}
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'product_list.css' %}">
+{% endblock static-files %}
+
 {% block content %}
-    <h1>ASDWD</h1>
+
+    <form class="form-search" method="GET" >
+        <input class="form-control" type="text" name="search" placeholder="Search" value={{search_parameters}}>
+        <button type="submit" class="btn btn-lg btn-primary btn-block"">Search</button>
+    </form>
+
+    <form class="form-sort" method="get">
+        <select id="sorting" class="form-control" name="sorting" onchange="this.form.submit()">
+            <option {% if sorting ==  "name" %}selected{% endif %} value="name">Sort by Name</option>
+            <option {% if sorting == "code" %}selected{% endif %} value="code">Sort by Code</option>
+            <option {% if sorting == "cost" %}selected{% endif %} value="cost">Sort by price (Ascending)</option>
+            <option {% if sorting == "-cost" %}selected{% endif %} value="-cost">Sort by price (Descending)</option>
+        </select>
+    </form>
+
+    <div class="modal" id="success" tabindex="-1" role="dialog">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Added to cart</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <p>product added to cart</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="failed" tabindex="-1" role="dialog">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Failed to add to cart</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <p>Failed to add the product on cart</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     {% if products %}
         <h2 class="text-center" >Products:</h2><br/>
@@ -10,9 +66,9 @@
                 <div class="col-lg-12 well">
                     <div class="col-sm-12">
                         <h3 class="text-center">{{product.name}}</h3>
-                        <h3 class="text-center">{{product.code}}</h3>
                         <div class="col-sm-12 center-block text-center">
                             <a class="btn btn-lg btn-info" href="{% url 'product' product.id %}">view product</a>
+                            <button type="button" class="btn btn-lg btn-info" onClick="add_product({{product.id}})">Add to cart</button>
                             <button type="button" class="btn btn-lg btn-info" data-toggle="collapse" data-target="#desc{{product.id}}">description</button>
                                 <div id="desc{{product.id}}" class="collapse">
                                   <p class="text-center lead">{{product.description}}</p>
@@ -23,5 +79,50 @@
                 </div>
             {% endfor %}
         </div>
+    {% else %}
+        <h2 class="text-center" >No Products found</h2><br/>
+    {% endif %}
+    {% if products.has_other_pages %}
+    <nav class="pagination" aria-label="Page navigation">
+        <ul class="pagination">
+            {% if products.has_previous %}
+                <li class="page-item"><a class="page-link" href="?sort={{sorting}}&search={{search_parameters}}&page={{ products.previous_page_number }}">&laquo;</a></li>
+            {% else %}
+                <li class="disabled page-item"><span class="page-link">&laquo;</span></li>
+            {% endif %}
+            {% for i in products.paginator.page_range %}
+                {% if products.number == i %}
+                    <li class="page-item active"><span class="page-link">{{ i }} <span class="sr-only">(current)</span></span></li>
+                    {% else %}
+                    <li class="page-item"><a class="page-link" href="?sort={{sorting}}&search={{search_parameters}}&page={{ i }}">{{ i }}</a></li>
+                {% endif %}
+            {% endfor %}
+            {% if products.has_next %}
+                <li class="page-item"><a class="page-link" href="?sort={{sorting}}&search={{search_parameters}}&page={{ products.next_page_number }}">&raquo;</a></li>
+            {% else %}
+                <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+            {% endif %}
+        </ul>
+    </nav>
     {% endif %}
 {% endblock content %}
+
+{% block scripts %}
+    {{ block.super }}
+    <script>
+      function add_product(id){
+            $.ajax({
+                type: "POST",
+                url : "/add_shopping_cart/" + id,
+                contentType: 'application/json; charset=utf-8',
+                datatype: "json",
+                success: function(data, status, xhr){
+                    $( "#success" ).modal()
+                },
+                error: function(data, status, xhr){
+                    $( "#failed" ).modal()
+                },
+            });
+        };
+    </script>
+{% endblock scripts %}
