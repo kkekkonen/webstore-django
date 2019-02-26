@@ -35,6 +35,7 @@ def register(request):
         if form.is_valid():
             user = form.save(commit=False)
             user.save()
+            auth_login(request, user)
             return redirect(reverse('product_list'))
         else:
             return render(request, 'registration.html', {'form': form})
@@ -66,6 +67,8 @@ def product_list(request):
         products = Product.objects.all()
     if sorting is not '':
         products = products.order_by(sorting)
+    else:
+        products = products.order_by('name')
     paginator = Paginator(products, 4)
     try:
         products_paginated = paginator.page(page)
@@ -133,7 +136,6 @@ def add_shopping_cart(request, id):
     if(request.method == "POST"):
         shopping_cart, created = Shopping_cart.objects.get_or_create(owner=request.user, defaults={'products': '{}'})
         product = get_object_or_404(Product, pk=id)
-        print(shopping_cart.products)
         data = json.loads(shopping_cart.products)
         if str(id) in data:
             data[str(id)]['count'] = data[str(id)]['count'] + 1

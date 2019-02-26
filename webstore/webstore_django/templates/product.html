@@ -1,6 +1,39 @@
 {% extends "base.html" %}
 
+{% block static-files %}
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'product_list.css' %}">
+{% endblock static-files %}
+
 {% block content %}
-    <div>
+
+    {% include "purchase_modal.html" %}
+    {% if product %}
+    <div class="top-margin">
+        <div class="product-table">
+            <table class="table table-hover table-bordered">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Code</th>
+                        <th>Description</th>
+                        <th>Add to cart</th>
+                        <th>cost</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="col-lg-12 well">
+                        <div class="col-sm-12">
+                            <td><h3 class="text-center">{{product.name}}</h3></td>
+                            <td><a>{{product.code}}</a></td>
+                            <td><a>{{product.description}}</a></td>
+                            <td><button type="button" class="btn btn-lg btn-info" onClick="add_product({{product.id}})">Add to cart</button></td>
+                            <td><p class="text-center">{{product.cost|floatformat:2}} €</p></td>
+                        </div>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
+    {% endif %}
 {% endblock %}

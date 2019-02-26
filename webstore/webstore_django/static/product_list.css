@@ -14,3 +14,12 @@
     padding: 15px;
     margin: 0 auto;
 }
+
+.product-table{
+    max-width: 800Px;
+    margin: 0 auto;
+}
+
+.top-margin{
+    margin-top: 50px;
+}
